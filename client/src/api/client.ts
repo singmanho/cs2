@@ -42,9 +42,17 @@ export const api = {
       request<any>(`/tournaments/${id}/teams`, { method: 'POST', body: JSON.stringify(data) }),
     removeTeam: (id: number, teamId: number) =>
       request<void>(`/tournaments/${id}/teams/${teamId}`, { method: 'DELETE' }),
+    batchAddTeams: (id: number, teamIds: number[]) =>
+      request<any>(`/tournaments/${id}/teams/batch`, { method: 'POST', body: JSON.stringify({ team_ids: teamIds }) }),
     generateDraw: (id: number) =>
       request<any>(`/tournaments/${id}/draw`, { method: 'POST' }),
+    start: (id: number) =>
+      request<any>(`/tournaments/${id}/start`, { method: 'POST' }),
+    end: (id: number) =>
+      request<any>(`/tournaments/${id}/end`, { method: 'POST' }),
     updateMatch: (tournamentId: number, matchId: number, data: { team_a_score: number; team_b_score: number }) =>
       request<any>(`/tournaments/${tournamentId}/matches/${matchId}`, { method: 'PUT', body: JSON.stringify(data) }),
+    generateKnockout: (id: number, advanceCount?: number) =>
+      request<any>(`/tournaments/${id}/knockout`, { method: 'POST', body: JSON.stringify({ advance_count: advanceCount }) }),
   },
 };

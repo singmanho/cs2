@@ -12,7 +12,7 @@ export function PlayerDetailPage() {
   const load = async () => {
     if (!id) return;
     setLoading(true);
-    try { setPlayer(await api.players.get(Number(id))); } catch { /* */ }
+    try { setPlayer(await api.players.get(Number(id))); } catch (err) { console.error('加载玩家失败:', err); }
     finally { setLoading(false); }
   };
 
@@ -102,7 +102,7 @@ function EditPlayerForm({ player, onClose, onDone }: { player: any; onClose: () 
         losses: losses ? Number(losses) : null,
       });
       onDone();
-    } catch { /* */ }
+    } catch (err) { console.error('保存玩家失败:', err); }
     finally { setSubmitting(false); }
   };
 

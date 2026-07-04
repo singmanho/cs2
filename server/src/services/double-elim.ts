@@ -158,3 +158,45 @@ export function getDoubleElimBracket(tournamentId: number): any[] {
 
   return bracket;
 }
+
+// ============================================================
+// Single Elimination Engine
+// ============================================================
+export function generateSingleElimBracket(participantIds: number[]): BracketSlot[] {
+  const n = participantIds.length;
+  const bracketSize = nextPowerOfTwo(n);
+  const slots: BracketSlot[] = [];
+  const shuffled = [...participantIds].sort(() => Math.random() - 0.5);
+
+  // Round 1
+  const r1Matches = bracketSize / 2;
+  for (let i = 0; i < r1Matches; i++) {
+    const a = shuffled[i * 2] ?? null;
+    const b = shuffled[i * 2 + 1] ?? null;
+    slots.push({
+      id: `R1-${i + 1}`,
+      round: 1, match_number: i + 1, bracket: 'W',
+      team_a_id: a, team_b_id: b, team_a_name: '', team_b_name: '',
+      winner_to: r1Matches > 1 ? `R2-${Math.floor(i / 2) + 1}` : null, loser_to: null,
+    });
+  }
+
+  // Subsequent rounds
+  let prevMatches = r1Matches;
+  let round = 2;
+  while (prevMatches > 1) {
+    const matches = prevMatches / 2;
+    for (let i = 0; i < matches; i++) {
+      slots.push({
+        id: `R${round}-${i + 1}`,
+        round, match_number: i + 1, bracket: 'W',
+        team_a_id: null, team_b_id: null, team_a_name: '', team_b_name: '',
+        winner_to: matches > 1 ? `R${round + 1}-${Math.floor(i / 2) + 1}` : null, loser_to: null,
+      });
+    }
+    prevMatches = matches;
+    round++;
+  }
+
+  return slots;
+}

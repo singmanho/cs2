@@ -4,7 +4,7 @@
 
 // --- Enums ---
 
-export type TournamentFormat = 'swiss' | 'double_elim' | 'round_robin';
+export type TournamentFormat = 'swiss' | 'double_elim' | 'round_robin' | 'single_elim';
 export type StageType = 'group' | 'knockout';
 export type MatchStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
 

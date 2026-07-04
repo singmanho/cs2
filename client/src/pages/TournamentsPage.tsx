@@ -6,6 +6,7 @@ const FORMAT_LABELS: Record<string, string> = {
   swiss: '瑞士轮',
   double_elim: '双败淘汰',
   round_robin: '组内循环',
+  single_elim: '单败淘汰',
 };
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
@@ -21,7 +22,7 @@ export function TournamentsPage() {
 
   const load = async () => {
     setLoading(true);
-    try { setTournaments(await api.tournaments.list()); } catch { /* */ }
+    try { setTournaments(await api.tournaments.list()); } catch (err) { console.error('加载赛事列表失败:', err); }
     finally { setLoading(false); }
   };
 
@@ -128,8 +129,9 @@ function CreateTournamentForm({ onClose, onCreated }: { onClose: () => void; onC
               <label className="text-sm font-medium mb-1 block">小组赛赛制</label>
               <select value={groupFormat} onChange={(e) => setGroupFormat(e.target.value)} className="input-field">
                 <option value="round_robin">组内循环</option>
-                <option value="swiss">瑞士轮</option>
+                <option value="swiss">瑞士轮 (需≥16队)</option>
                 <option value="double_elim">双败淘汰</option>
+                <option value="single_elim">单败淘汰</option>
               </select>
             </div>
             <div>
@@ -138,6 +140,7 @@ function CreateTournamentForm({ onClose, onCreated }: { onClose: () => void; onC
                 <option value="swiss">瑞士轮</option>
                 <option value="double_elim">双败淘汰</option>
                 <option value="round_robin">组内循环</option>
+                <option value="single_elim">单败淘汰</option>
               </select>
             </div>
           </div>

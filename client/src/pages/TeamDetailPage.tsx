@@ -13,7 +13,7 @@ export function TeamDetailPage() {
   const load = async () => {
     if (!id) return;
     setLoading(true);
-    try { setTeam(await api.teams.get(Number(id))); } catch { /* */ }
+    try { setTeam(await api.teams.get(Number(id))); } catch (err) { console.error('加载战队详情失败:', err); }
     finally { setLoading(false); }
   };
 

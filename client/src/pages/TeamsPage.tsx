@@ -9,7 +9,7 @@ export function TeamsPage() {
 
   const load = async () => {
     setLoading(true);
-    try { setTeams(await api.teams.list()); } catch { /* */ }
+    try { setTeams(await api.teams.list()); } catch (err) { console.error('加载战队列表失败:', err); }
     finally { setLoading(false); }
   };
 

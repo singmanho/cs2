@@ -4,7 +4,7 @@ import { api } from '../api/client';
 import { Bracket } from '../components/Bracket';
 
 const FORMAT_LABELS: Record<string, string> = {
-  swiss: '瑞士轮', double_elim: '双败淘汰', round_robin: '组内循环',
+  swiss: '瑞士轮', double_elim: '双败淘汰', round_robin: '组内循环', single_elim: '单败淘汰',
 };
 
 export function TournamentDetailPage() {
@@ -14,43 +14,65 @@ export function TournamentDetailPage() {
   const [tab, setTab] = useState<'teams' | 'matches' | 'bracket' | 'standings' | 'leaderboard'>('teams');
   const [teamSearch, setTeamSearch] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [showBatchAdd, setShowBatchAdd] = useState(false);
+  const [allTeams, setAllTeams] = useState<any[]>([]);
+  const [selectedTeamIds, setSelectedTeamIds] = useState<number[]>([]);
 
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
-    try { setTournament(await api.tournaments.get(Number(id))); } catch { /* */ }
+    try { setTournament(await api.tournaments.get(Number(id))); } catch (err) { console.error('加载赛事失败:', err); }
     finally { setLoading(false); }
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
 
-  useEffect(() => {
-    if (teamSearch.length < 1) { setSearchResults([]); return; }
-    const t = setTimeout(async () => {
-      try {
-        const teams = await api.teams.list();
-        setSearchResults(teams);
-      } catch { /* */ }
-    }, 300);
-    return () => clearTimeout(t);
-  }, [teamSearch]);
+  const handleBatchAdd = async () => {
+    if (!id || selectedTeamIds.length === 0) return;
+    try {
+      await api.tournaments.batchAddTeams(Number(id), selectedTeamIds);
+      setShowBatchAdd(false); setSelectedTeamIds([]); load();
+    } catch (err) { console.error('批量添加战队失败:', err); }
+  };
 
   const handleAddTeam = async (teamId: number) => {
     if (!id) return;
-    await api.tournaments.addTeam(Number(id), { team_id: teamId });
-    setTeamSearch(''); setShowDropdown(false); load();
+    try {
+      await api.tournaments.addTeam(Number(id), { team_id: teamId });
+      setTeamSearch(''); load();
+    } catch (err) { console.error('添加战队失败:', err); }
   };
 
   const handleRemoveTeam = async (teamId: number) => {
     if (!id) return;
-    await api.tournaments.removeTeam(Number(id), teamId);
-    load();
+    try {
+      await api.tournaments.removeTeam(Number(id), teamId);
+      load();
+    } catch (err) { console.error('移除战队失败:', err); }
   };
 
   const handleGenerateDraw = async () => {
     if (!id) return;
     try { await api.tournaments.generateDraw(Number(id)); load(); }
+    catch (err: any) { alert(err.message); }
+  };
+
+  const handleGenerateKnockout = async () => {
+    if (!id) return;
+    try { await api.tournaments.generateKnockout(Number(id)); load(); }
+    catch (err: any) { alert(err.message); }
+  };
+
+  const handleStartTournament = async () => {
+    if (!id) return;
+    try { await api.tournaments.start(Number(id)); load(); }
+    catch (err: any) { alert(err.message); }
+  };
+
+  const handleEndTournament = async () => {
+    if (!id) return;
+    if (!confirm('确认结束此赛事？')) return;
+    try { await api.tournaments.end(Number(id)); load(); }
     catch (err: any) { alert(err.message); }
   };
 
@@ -78,11 +100,21 @@ export function TournamentDetailPage() {
               <span className="tag">小组: {FORMAT_LABELS[tournament.group_format]}</span>
               <span className="tag">淘汰: {FORMAT_LABELS[tournament.knockout_format]}</span>
               <span className="tag">{teamCount} 支战队</span>
+              <span className="tag">默认 BO{tournament.default_bo || 1}</span>
             </div>
           </div>
           <div className="flex gap-2">
             {tournament.status === 'upcoming' && teamCount >= 2 && (
-              <button onClick={handleGenerateDraw} className="btn-primary">生成对阵</button>
+              <>
+                <button onClick={handleStartTournament} className="btn-secondary">开始赛事</button>
+                <button onClick={handleGenerateDraw} className="btn-primary">生成对阵</button>
+              </>
+            )}
+            {tournament.status === 'in_progress' && (
+              <>
+                <button onClick={handleGenerateKnockout} className="btn-secondary">生成淘汰赛对阵</button>
+                <button onClick={handleEndTournament} className="btn-secondary text-red-400 border-red-500/30 hover:bg-red-500/10">结束赛事</button>
+              </>
             )}
           </div>
         </div>
@@ -102,24 +134,31 @@ export function TournamentDetailPage() {
       {tab === 'teams' && (
         <div className="space-y-4">
           {tournament.status === 'upcoming' && (
-            <div className="relative">
-              <label className="text-sm font-medium mb-1 block">添加战队</label>
-              <input type="text" value={teamSearch} onChange={(e) => { setTeamSearch(e.target.value); setShowDropdown(true); }} onFocus={() => setShowDropdown(true)} placeholder="搜索战队..." className="input-field max-w-sm" />
-              {showDropdown && teamSearch && (
-                <div className="absolute top-full mt-1 w-full max-w-sm bg-cs2-surface border border-cs2-border rounded-lg shadow-xl z-10 max-h-48 overflow-y-auto">
-                  {searchResults.filter((t: any) => !(tournament.teams || []).some((tt: any) => tt.team_id === t.id)).length === 0 ? (
-                    <p className="px-3 py-2 text-sm text-cs2-text-muted">未找到可添加的战队</p>
-                  ) : (
-                    searchResults.filter((t: any) => !(tournament.teams || []).some((tt: any) => tt.team_id === t.id)).map((t: any) => (
-                      <button key={t.id} onClick={() => handleAddTeam(t.id)} className="w-full px-3 py-2 text-left text-sm hover:bg-cs2-accent/10 flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-lg bg-cs2-accent/10 flex items-center justify-center text-cs2-accent text-xs font-bold">{t.name.charAt(0)}</span>
-                        {t.name} <span className="text-cs2-text-muted ml-auto text-xs">{t.member_count}人</span>
-                      </button>
-                    ))
-                  )}
+            <>
+              <button onClick={async () => { setAllTeams(await api.teams.list()); setShowBatchAdd(true); }} className="btn-secondary">+ 批量添加战队</button>
+              {showBatchAdd && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                  <div className="card w-full max-w-lg mx-4 max-h-[70vh] overflow-y-auto">
+                    <h2 className="text-lg font-semibold mb-3">选择战队</h2>
+                    <div className="space-y-2 mb-4">
+                      {allTeams.filter((t:any) => !(tournament.teams||[]).some((tt:any) => tt.team_id===t.id)).map((t:any) => (
+                        <label key={t.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-cs2-bg cursor-pointer">
+                          <input type="checkbox" checked={selectedTeamIds.includes(t.id)} onChange={() => setSelectedTeamIds(prev => prev.includes(t.id) ? prev.filter(x=>x!==t.id) : [...prev, t.id])} className="w-4 h-4" />
+                          <span className="w-7 h-7 rounded-lg bg-cs2-accent/10 flex items-center justify-center text-cs2-accent text-xs font-bold">{t.name.charAt(0)}</span>
+                          <span className="text-sm">{t.name}</span>
+                          <span className="text-xs text-cs2-text-muted ml-auto">{t.member_count}人</span>
+                        </label>
+                      ))}
+                      {allTeams.filter((t:any)=>!(tournament.teams||[]).some((tt:any)=>tt.team_id===t.id)).length===0 && <p className="text-sm text-cs2-text-muted">所有战队已添加</p>}
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <button onClick={() => { setShowBatchAdd(false); setSelectedTeamIds([]); }} className="btn-secondary">取消</button>
+                      <button onClick={handleBatchAdd} disabled={selectedTeamIds.length===0} className="btn-primary">添加 {selectedTeamIds.length} 支战队</button>
+                    </div>
+                  </div>
                 </div>
               )}
-            </div>
+            </>
           )}
 
           {(!tournament.teams || tournament.teams.length === 0) ? (
@@ -129,10 +168,10 @@ export function TournamentDetailPage() {
               {tournament.teams.map((tt: any) => (
                 <div key={tt.id} className="card p-3 flex items-center gap-3 group">
                   <Link to={`/teams/${tt.team_id}`} className="w-9 h-9 rounded-lg bg-cs2-accent/10 flex items-center justify-center text-cs2-accent font-bold text-sm flex-shrink-0">
-                    {(tt.team?.name || '?').charAt(0)}
+                    {(tt.team_name || '?').charAt(0)}
                   </Link>
                   <div className="flex-1 min-w-0">
-                    <Link to={`/teams/${tt.team_id}`} className="font-medium text-sm hover:text-cs2-accent truncate block">{tt.team?.name || `Team #${tt.team_id}`}</Link>
+                    <Link to={`/teams/${tt.team_id}`} className="font-medium text-sm hover:text-cs2-accent truncate block">{tt.team_name || `Team #${tt.team_id}`}</Link>
                     {tt.group_name && <span className="text-xs text-cs2-accent">{tt.group_name}组</span>}
                   </div>
                   {tournament.status === 'upcoming' && (
@@ -145,15 +184,16 @@ export function TournamentDetailPage() {
         </div>
       )}
 
-      {/* Matches tab */}
+      {/* Matches tab — group stage */}
       {tab === 'matches' && (
-        <Bracket matches={tournament.matches || []} format={tournament.group_format}
+        <Bracket matches={tournament.matches || []} format={tournament.group_format} stage="group"
           onUpdateMatch={tournament.status === 'in_progress' ? handleUpdateMatch : undefined} />
       )}
 
-      {/* Bracket tab */}
+      {/* Bracket tab — knockout stage */}
       {tab === 'bracket' && (
-        <Bracket matches={tournament.matches || []} format={tournament.group_format} />
+        <Bracket matches={tournament.matches || []} format={tournament.knockout_format || tournament.group_format} stage="knockout"
+          onUpdateMatch={tournament.status === 'in_progress' ? handleUpdateMatch : undefined} />
       )}
 
       {/* Standings tab */}
@@ -219,7 +259,7 @@ function LeaderboardView({ teams }: { teams: any[] }) {
           allPlayers.push({
             player_id: m.player_id,
             name: m.player?.name || m.name || `Player ${m.player_id}`,
-            rank: m.player?.rank || '暂无段位',
+            rank: m.player?.rank || '未定级',
             rating: m.player?.rating || 0,
             kd_ratio: m.player?.kd_ratio || 0,
             avg_damage: m.player?.avg_damage || 0,

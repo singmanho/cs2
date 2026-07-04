@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
-import { CS2_RANKS } from '@shared/types';
+import { CS2_RANKS, type CS2Rank } from '@shared/types';
 
 export function PlayersPage() {
   const [players, setPlayers] = useState<any[]>([]);
@@ -13,7 +13,7 @@ export function PlayersPage() {
     setLoading(true);
     try {
       setPlayers(await api.players.list(searchTerm));
-    } catch { /* ignore */ }
+    } catch (err) { console.error('加载玩家列表失败:', err); }
     finally { setLoading(false); }
   };
 
@@ -75,7 +75,7 @@ export function PlayersPage() {
 
 function AddPlayerForm({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const [name, setName] = useState('');
-  const [rank, setRank] = useState('暂无段位');
+  const [rank, setRank] = useState<CS2Rank>(CS2_RANKS[0]);
   const [rating, setRating] = useState('');
   const [kd, setKd] = useState('');
   const [adr, setAdr] = useState('');
@@ -117,7 +117,7 @@ function AddPlayerForm({ onClose, onDone }: { onClose: () => void; onDone: () =>
 
           <div>
             <label className="text-sm font-medium mb-1 block">段位</label>
-            <select value={rank} onChange={(e) => setRank(e.target.value)} className="input-field">
+            <select value={rank} onChange={(e) => setRank(e.target.value as CS2Rank)} className="input-field">
               {CS2_RANKS.map((r) => (
                 <option key={r} value={r}>{r}</option>
               ))}

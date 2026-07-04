@@ -47,8 +47,13 @@ let saveTimer: ReturnType<typeof setTimeout> | undefined;
 function queueSave(): void {
   if (!saveTimer) {
     saveTimer = setTimeout(() => {
-      saveDb();
-      saveTimer = undefined;
+      try {
+        saveDb();
+      } catch (err) {
+        console.error('[db] saveDb failed in queueSave:', err);
+      } finally {
+        saveTimer = undefined;
+      }
     }, 50);
   }
 }
@@ -57,7 +62,11 @@ export function flushSave(): void {
   if (saveTimer) {
     clearTimeout(saveTimer);
     saveTimer = undefined;
+  }
+  try {
     saveDb();
+  } catch (err) {
+    console.error('[db] saveDb failed in flushSave:', err);
   }
 }
 
